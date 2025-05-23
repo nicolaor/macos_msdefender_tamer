@@ -1,34 +1,39 @@
-# macos_msdefender_tamer
+# Microsoft Defender Tamer for macOS
 
+This guide describes how to configure a macOS system to automatically reduce the resource consumption of Microsoft Defender processes when running on battery power.
+On a macbook pro 16" M4 (2024) Battery life increased 4x (from 2-3 hours to 8-12 hours)
 
-# 🛡️ Microsoft Defender Tamer for macOS Battery Optimization
+## 🔧 Features
 
-This guide helps you reduce the resource impact of Microsoft Defender on your MacBook while on battery power by lowering the priority of its background processes.
+- Detects when the system is running on battery.
+- Reduces priority (`nice`) and places selected Defender processes into background mode.
+- Automatically reverts settings when plugged into AC power.
+- Runs periodically every 3 minutes using a launch agent.
 
 ---
 
-## 📁 1. Install the Script
+## 📁 1. Place the Script
 
-1. Create a directory to store your scripts (if not already present):
-
+1. Create a `Scripts` directory in your home folder if it doesn’t exist:
    ```bash
    mkdir -p ~/Scripts
    ```
 
-2. Copy the `defender_tamer.sh` script into `~/Scripts`.
-
-3. Make it executable:
-
+2. Save the following script as `defender_tamer.sh` inside the `~/Scripts` directory:
    ```bash
    chmod +x ~/Scripts/defender_tamer.sh
    ```
 
 ---
 
-## ⚙️ 2. Create a Launch Agent
+## ⚙️ 2. Configure Launch Agent
 
-1. Save the following contents to:  
-   `/Library/LaunchDaemons/com.mondaycoffee.defender.tamer.plist`
+1. Create a LaunchAgent at:
+   ```bash
+   mkdir -p ~/Library/LaunchAgents
+   ```
+
+2. Save the following content as `com.nicolaor.defender.tamer.plist` in `~/Library/LaunchAgents/`:
 
    ```xml
    <?xml version="1.0" encoding="UTF-8"?>
@@ -36,87 +41,51 @@ This guide helps you reduce the resource impact of Microsoft Defender on your Ma
    <plist version="1.0">
    <dict>
        <key>Label</key>
-       <string>com.mondaycoffee.defender.tamer</string>
-
+       <string>com.nicolaor.defender.tamer</string>
        <key>ProgramArguments</key>
        <array>
-           <string>/Users/rene.nicolao/Scripts/defender_tamer.sh</string>
+           <string>$HOME/Scripts/defender_tamer.sh</string>
        </array>
-
        <key>StartInterval</key>
-       <integer>180</integer> <!-- Runs every 3 minutes -->
-
+       <integer>180</integer> <!-- Run every 3 minutes -->
        <key>RunAtLoad</key>
        <true/>
-
        <key>StandardOutPath</key>
        <string>/tmp/defender_tamer.log</string>
-
        <key>StandardErrorPath</key>
        <string>/tmp/defender_tamer.err</string>
    </dict>
    </plist>
    ```
 
-2. Make the `.plist` file readable and executable:
-
+3. Load the LaunchAgent:
    ```bash
-   sudo chmod 644 /Library/LaunchDaemons/com.mondaycoffee.defender.tamer.plist
-   ```
-
-3. Load the Launch Daemon:
-
-   ```bash
-   sudo launchctl load /Library/LaunchDaemons/com.mondaycoffee.defender.tamer.plist
+   launchctl load ~/Library/LaunchAgents/com.nicolaor.defender.tamer.plist
    ```
 
 ---
 
-## 🔐 3. Configure Sudo Permissions (No Password Prompt)
+## 🔐 3. Configure `sudo` Permissions
 
-1. Open the sudoers file safely:
-
-   ```bash
-   sudo visudo
-   ```
-
-2. Add the following line at the end (replace `rene.nicolao` with your username):
-
-   ```bash
-   rene.nicolao ALL=(ALL) NOPASSWD: \
-   /usr/bin/pmset -a lowpowermode *, \
-   /usr/bin/renice * -p *, \
-   /usr/bin/taskpolicy -b -p *, \
-   /usr/bin/taskpolicy -p *
-   ```
-
----
-
-## 🚀 4. Done!
-
-The script will now run every 3 minutes. When on battery power, it will:
-
-- Lower the priority (`nice +20`) of various Defender-related processes
-- Put them in background mode (via `taskpolicy -b`) where supported
-
-When plugged into AC, their original priority and scheduling will be restored.
-
----
-
-## 🔍 Logs
-
-You can inspect logs in:
+To avoid password prompts on every run, add the following line to your `sudoers` file using `sudo visudo`:
 
 ```bash
-cat /tmp/defender_tamer.log
-cat /tmp/defender_tamer.err
+sudo visudo
 ```
+
+Append:
+```bash
+your-username ALL=(ALL) NOPASSWD: \
+/usr/bin/pmset -a lowpowermode *, \
+/usr/bin/renice * -p *, \
+/usr/bin/taskpolicy -b -p *, \
+/usr/bin/taskpolicy -p *
+```
+
+Replace `your-username` with your actual macOS username.
 
 ---
 
-## 🧪 Tested With
+## ✅ Done!
 
-- macOS 14+ (Sonoma)
-- Microsoft Defender for Endpoint
-- Apple Silicon and Intel Macs
-
+The Defender Tamer script will now monitor your power source and automatically optimize Defender processes accordingly.
